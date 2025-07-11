@@ -138,7 +138,7 @@ export async function healthCheck(): Promise<{
   checks: Record<string, boolean>;
   timestamp: string;
 }> {
-  const checks = {
+  const checks: Record<string, boolean> = {
     environmentVariables: !!(process.env.PINECONE_API_KEY && process.env.PINECONE_ASSISTANT_ID),
     apiKeyFormat: process.env.PINECONE_API_KEY?.startsWith('pcsk_') || false,
     clientInitialized: !!pinecone && typeof pinecone.listIndexes === 'function'

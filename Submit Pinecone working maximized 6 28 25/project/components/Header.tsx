@@ -4,17 +4,18 @@ import { useState } from 'react';
 import { Zap, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import PineconeStatus from '@/components/PineconeStatus';
-import { usePineconeStatus } from '@/hooks/use-pinecone-status';
+import DatabaseStatus from '@/components/DatabaseStatus';
+import { useDatabaseStatus } from '@/hooks/use-database-status';
 import { cn } from '@/lib/utils';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { status: pineconeStatus } = usePineconeStatus();
+  const { status: databaseStatus } = useDatabaseStatus();
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'AI Chat', href: '/ai-chat' },
+    { name: 'Video Steward', href: '/dashboard/video-steward' },
     { name: 'Documents', href: '/documents' },
     { name: 'Profile', href: '/profile' },
     { name: 'Pricing', href: '/pricing' },
@@ -61,12 +62,12 @@ export default function Header() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-4">
-            <PineconeStatus />
-            {pineconeStatus.connected && (
-              <Badge variant="outline" className="border-green-500/50 text-green-500">
-                20M Tokens
-              </Badge>
-            )}
+            <DatabaseStatus />
+            {databaseStatus.connected && (
+                <Badge variant="outline" className="border-green-500/50 text-green-500">
+                  {databaseStatus.assistantId}
+                </Badge>
+              )}
             <Button 
               variant="ghost" 
               className="text-muted-foreground hover:text-white"
@@ -106,12 +107,12 @@ export default function Header() {
               ))}
               <div className="flex flex-col space-y-2 pt-4">
                 <div className="flex items-center justify-between">
-                  <PineconeStatus />
-                  {pineconeStatus.connected && (
-                    <Badge variant="outline" className="border-green-500/50 text-green-500">
-                      20M Tokens
-                    </Badge>
-                  )}
+                  <DatabaseStatus />
+                  {databaseStatus.connected && (
+                     <Badge variant="outline" className="border-green-500/50 text-green-500">
+                       {databaseStatus.assistantId}
+                     </Badge>
+                   )}
                 </div>
                 <Button 
                   variant="ghost" 

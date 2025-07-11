@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Header from '@/components/Header';
-import PineconeStatus from '@/components/PineconeStatus';
+import DatabaseStatus from '@/components/DatabaseStatus';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { usePineconeStatus } from '@/hooks/use-pinecone-status';
+import { useDatabaseStatus } from '@/hooks/use-database-status';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { status: pineconeStatus } = usePineconeStatus();
+  const { status: databaseStatus } = useDatabaseStatus();
 
   useEffect(() => {
     setMounted(true);
@@ -108,17 +108,17 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
-                  {pineconeStatus.connected ? (
+                  {databaseStatus.connected ? (
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   ) : (
                     <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
                   )}
                 </div>
                 <div className="text-3xl font-bold neon-text mb-2">
-                  {pineconeStatus.loading ? '...' : pineconeStatus.connected ? '✓' : '⚠'}
+                  {databaseStatus.loading ? '...' : databaseStatus.connected ? '✓' : '⚠'}
                 </div>
                 <div className="text-muted-foreground">
-                  {pineconeStatus.loading ? 'Connecting...' : pineconeStatus.connected ? 'AI Connected' : 'AI Reconnecting'}
+                  {databaseStatus.loading ? 'Connecting...' : databaseStatus.connected ? 'DB Connected' : 'DB Reconnecting'}
                 </div>
               </div>
               <div className="text-center">
@@ -134,7 +134,7 @@ export default function Home() {
                 </div>
                 <div className="text-3xl font-bold neon-text mb-2">24/7</div>
                 <div className="text-muted-foreground">
-                  {pineconeStatus.connected ? 'AI Support' : 'Reconnecting...'}
+                  {databaseStatus.connected ? 'AI Support' : 'Reconnecting...'}
                 </div>
               </div>
             </div>
@@ -283,7 +283,7 @@ export default function Home() {
               </span>
             </div>
             <div className="mb-4 md:mb-0">
-              <PineconeStatus />
+              <DatabaseStatus />
             </div>
             <div className="text-muted-foreground text-sm">
               © 2024 UnionBolt AI. All rights reserved.

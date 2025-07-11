@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeManager } from '@/lib/pinecone-enhanced';
+import { databaseManager } from '@/lib/database-manager';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -28,8 +28,8 @@ function logChatAPI(context: string, data: any) {
 export async function POST(request: NextRequest) {
   logChatAPI('Starting chat request', {
     nodeEnv: process.env.NODE_ENV,
-    hasApiKey: !!process.env.PINECONE_API_KEY,
-    hasAssistantId: !!process.env.PINECONE_ASSISTANT_ID
+    databaseType: 'internal',
+    assistantType: 'deepseek-r1'
   });
   
   try {
@@ -80,23 +80,23 @@ export async function POST(request: NextRequest) {
     const userMessage = limitedMessages[limitedMessages.length - 1];
     const context = limitedMessages.slice(0, -1).map(msg => msg.content);
 
-    // Generate AI response using Pinecone
+    // Generate AI response using database manager
     let aiResponse;
     try {
-      // Check Pinecone connection status
-      const status = pineconeManager.getStatus();
+      // Check database connection status
+      const status = databaseManager.getStatus();
       
       if (status.connected) {
-        // Use Pinecone for enhanced responses
-        aiResponse = await pineconeManager.queryAssistant(userMessage.content, context);
+        // Use database manager for enhanced responses
+        aiResponse = await databaseManager.queryAssistant(userMessage.content, context);
         
-        logChatAPI('Pinecone response generated successfully', {
+        logChatAPI('Database response generated successfully', {
           tokenUsage: aiResponse.tokenUsage,
           responseLength: aiResponse.response.length
         });
       } else {
         // Fallback to local knowledge base
-        throw new Error('Pinecone connection not available');
+        throw new Error('Database connection not available');
       }
     } catch (responseError) {
       logChatAPI('AI response generation failed, using fallback', { error: responseError });
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       conversationId: responseConversationId,
       timestamp: new Date().toISOString(),
       messagesInContext: limitedMessages.length,
-      assistant: 'business-agent-bot',
+      assistant: 'deepseek-r1-agent',
       status: 'success'
     };
 
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       details: error instanceof Error ? error.message : 'Unknown error',
       fallbackMessage: "I'm experiencing technical difficulties. For immediate union assistance, please contact your steward or union office directly.",
       timestamp: new Date().toISOString(),
-      assistant: 'business-agent-bot'
+      assistant: 'deepseek-r1-agent'
     }, { status: statusCode });
   }
 }

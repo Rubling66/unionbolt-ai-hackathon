@@ -437,8 +437,10 @@ export default function PricingPage() {
     
     setTimeout(() => {
       setLoadingTrial(null);
-      console.log(`Starting trial for ${planId}`);
-    }, 2000);
+      // Redirect to checkout page with plan and billing parameters
+      const billing = isYearly ? 'yearly' : 'monthly';
+      window.location.href = `/checkout?plan=${planId}&billing=${billing}`;
+    }, 1000);
   };
 
   const getFeatureIcon = (level: string) => {

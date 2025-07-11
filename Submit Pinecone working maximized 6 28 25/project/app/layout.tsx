@@ -11,7 +11,11 @@ export const metadata: Metadata = {
   description: 'Harness the power of AI-driven knowledge management. Transform how organizations learn, protect, and grow.',
   keywords: 'union, AI, knowledge management, workplace safety, collective bargaining, member services',
   authors: [{ name: 'UnionBolt AI Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#00ff00',
 };
 

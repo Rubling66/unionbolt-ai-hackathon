@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Trash2, AlertCircle, Zap, Download, MessageSquare, Sparkles, Clock, Copy, Check } from 'lucide-react';
+import { Send, Bot, User, Trash2, AlertCircle, Zap, Download, MessageSquare, Sparkles, Clock, Copy, Check, Video, VideoOff } from 'lucide-react';
+import { UnionStewardVideo } from '@/components/UnionStewardVideo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,7 @@ interface ChatResponse {
   tokenUsage: TokenUsage;
   conversationId: string;
   status: string;
+  error?: string;
 }
 
 // Suggested prompts for common union questions
@@ -71,6 +73,7 @@ export default function AIChatPage() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [showVideoChat, setShowVideoChat] = useState(false);
   
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -96,7 +99,7 @@ export default function AIChatPage() {
     setShowSuggestions(persistedMessages.length === 0);
   }, [persistedMessages.length]);
 
-  // Check Pinecone connection status
+  // Check database connection status
   const checkConnectionStatus = async () => {
     try {
       const response = await fetch('/api/test-connection');
@@ -253,7 +256,7 @@ export default function AIChatPage() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-2">AI Chat Assistant</h1>
               <p className="text-muted-foreground">
-                Token-efficient conversations with business-agent-bot
+                Token-efficient conversations with DeepSeek R1 Agent
               </p>
             </div>
             
@@ -311,7 +314,7 @@ export default function AIChatPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center space-x-2">
                       <Bot className="w-5 h-5 text-green-500" />
-                      <span>Business Agent Bot</span>
+                      <span>{showVideoChat ? 'Video Steward Chat' : 'DeepSeek R1 Agent'}</span>
                       {connectionStatus.loading ? (
                         <Badge variant="outline" className="border-yellow-500/50 text-yellow-500">
                           <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-2" />
@@ -330,6 +333,23 @@ export default function AIChatPage() {
                       )}
                     </CardTitle>
                     <div className="flex items-center space-x-2">
+                      <Button
+                        variant={showVideoChat ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowVideoChat(!showVideoChat)}
+                        className={cn(
+                          "h-8 px-3 transition-all duration-200",
+                          showVideoChat 
+                            ? "bg-green-500 hover:bg-green-600 text-black" 
+                            : "hover:bg-green-500/10 hover:text-green-400 hover:border-green-500/30"
+                        )}
+                      >
+                        {showVideoChat ? (
+                          <><VideoOff className="w-3 h-3 mr-1" />Exit Video</>
+                        ) : (
+                          <><Video className="w-3 h-3 mr-1" />Video Chat</>
+                        )}
+                      </Button>
                       <Badge variant="outline" className="border-green-500/50 text-green-500">
                         Memory: Last 5 messages
                       </Badge>
@@ -341,22 +361,41 @@ export default function AIChatPage() {
                 </CardHeader>
 
                 <CardContent className="flex-1 flex flex-col p-0">
-                  {/* Messages Area */}
-                  <ScrollArea className="flex-1 px-4 sm:px-6" ref={scrollAreaRef}>
+                  {/* Video Chat Component */}
+                   {showVideoChat && (
+                     <div className="flex-1 flex flex-col">
+                       <div className="border-b border-border p-4 bg-muted/30">
+                         <div className="text-center">
+                           <Video className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                           <h3 className="text-lg font-semibold mb-1">Video Steward Chat Active</h3>
+                           <p className="text-sm text-muted-foreground">
+                             You're now in video chat mode with your Union Steward. Use the video interface below to communicate.
+                           </p>
+                         </div>
+                       </div>
+                       <div className="flex-1">
+                         <UnionStewardVideo />
+                       </div>
+                     </div>
+                   )}
+                   
+                   {/* Messages Area - Hidden when video chat is active */}
+                   {!showVideoChat && (
+                     <ScrollArea className="flex-1 px-4 sm:px-6" ref={scrollAreaRef}>
                     <div className="space-y-4 pb-4">
                       {persistedMessages.length === 0 && !showSuggestions && (
                         <div className="text-center py-12">
                           <Bot className="w-12 h-12 text-green-500 mx-auto mb-4 opacity-50" />
                           <p className="text-muted-foreground mb-2">
                             {connectionStatus.connected 
-                              ? "Start a conversation with the AI assistant"
-                              : "AI assistant is currently offline"
+                              ? "Start a conversation with the DeepSeek R1 agent"
+                              : "DeepSeek R1 agent is currently offline"
                             }
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {connectionStatus.connected
                               ? "Try asking about union policies, safety procedures, or training requirements"
-                              : "Basic responses available. Full functionality will return when connection is restored."
+                              : "Basic responses available. Full functionality will return when database connection is restored."
                             }
                           </p>
                         </div>
@@ -473,7 +512,7 @@ export default function AIChatPage() {
                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce delay-100" />
                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce delay-200" />
                               </div>
-                              <span className="text-sm text-muted-foreground">AI is thinking...</span>
+                              <span className="text-sm text-muted-foreground">DeepSeek R1 is thinking...</span>
                             </div>
                           </div>
                         </div>
@@ -482,7 +521,7 @@ export default function AIChatPage() {
                       <div ref={messagesEndRef} />
                     </div>
                   </ScrollArea>
-
+                  
                   {/* Error Display */}
                   {error && (
                     <div className="mx-4 sm:mx-6 mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg animate-in slide-in-from-top-2 duration-300">
@@ -492,63 +531,66 @@ export default function AIChatPage() {
                       </div>
                     </div>
                   )}
+                )}
 
-                  {/* Input Area */}
-                  <div className="border-t border-border p-4 sm:p-6">
-                    <div className="flex items-end space-x-3">
-                      <div className="flex-1 space-y-2">
-                        <Textarea
-                          ref={inputRef}
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={handleKeyPress}
-                          placeholder={connectionStatus.connected 
-                            ? "Ask about union policies, safety, training..."
-                            : "Ask about union topics (limited responses while offline)..."
-                          }
-                          className={cn(
-                            "min-h-[60px] max-h-[120px] resize-none",
-                            "bg-background border-border focus:border-green-500",
-                            "placeholder:text-muted-foreground/70"
-                          )}
-                          disabled={isLoading}
-                          maxLength={1000}
-                        />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Press Enter to send, Shift+Enter for new line</span>
-                          <div className="flex items-center space-x-2">
-                            <span className={cn(
-                              input.length > 800 && "text-yellow-500",
-                              input.length > 950 && "text-red-500"
-                            )}>
-                              {input.length}/1000
-                            </span>
-                            {!connectionStatus.connected && (
-                              <span className="text-yellow-500">• Offline Mode</span>
+                  {/* Input Area - Hidden when video chat is active */}
+                  {!showVideoChat && (
+                    <div className="border-t border-border p-4 sm:p-6">
+                      <div className="flex items-end space-x-3">
+                        <div className="flex-1 space-y-2">
+                          <Textarea
+                            ref={inputRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            placeholder={connectionStatus.connected 
+                              ? "Ask about union policies, safety, training..."
+                              : "Ask about union topics (limited responses while database offline)..."
+                            }
+                            className={cn(
+                              "min-h-[60px] max-h-[120px] resize-none",
+                              "bg-background border-border focus:border-green-500",
+                              "placeholder:text-muted-foreground/70"
                             )}
+                            disabled={isLoading}
+                            maxLength={1000}
+                          />
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Press Enter to send, Shift+Enter for new line</span>
+                            <div className="flex items-center space-x-2">
+                              <span className={cn(
+                                input.length > 800 && "text-yellow-500",
+                                input.length > 950 && "text-red-500"
+                              )}>
+                                {input.length}/1000
+                              </span>
+                              {!connectionStatus.connected && (
+                                <span className="text-yellow-500">• Offline Mode</span>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        
+                        <Button
+                          onClick={() => handleSendMessage()}
+                          disabled={!input.trim() || isLoading}
+                          className={cn(
+                            "h-[60px] px-6 transition-all duration-200",
+                            connectionStatus.connected
+                              ? "bg-green-500 hover:bg-green-600 text-black neon-glow"
+                              : "bg-yellow-500 hover:bg-yellow-600 text-black",
+                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                          )}
+                        >
+                          {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Send className="w-5 h-5" />
+                          )}
+                        </Button>
                       </div>
-                      
-                      <Button
-                        onClick={() => handleSendMessage()}
-                        disabled={!input.trim() || isLoading}
-                        className={cn(
-                          "h-[60px] px-6 transition-all duration-200",
-                          connectionStatus.connected
-                            ? "bg-green-500 hover:bg-green-600 text-black neon-glow"
-                            : "bg-yellow-500 hover:bg-yellow-600 text-black",
-                          "disabled:opacity-50 disabled:cursor-not-allowed"
-                        )}
-                      >
-                        {isLoading ? (
-                          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Send className="w-5 h-5" />
-                        )}
-                      </Button>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

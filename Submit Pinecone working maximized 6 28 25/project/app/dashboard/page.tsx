@@ -328,7 +328,11 @@ export default function DashboardPage() {
     
     setTimeout(() => {
       setLoadingStates(prev => ({ ...prev, [cardType]: false }));
-      console.log(`Navigating to ${cardType}`);
+      if (cardType === 'video-steward') {
+        window.location.href = '/dashboard/video-steward';
+      } else {
+        console.log(`Navigating to ${cardType}`);
+      }
     }, 1000);
   };
 
@@ -864,7 +868,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Enhanced Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {/* AI Assistant Card */}
             <Card 
               className={cn(
@@ -1007,6 +1011,43 @@ export default function DashboardPage() {
                   />
                   <div className="text-xs text-muted-foreground">
                     {memberData.stats.safetyProtocols.required - memberData.stats.safetyProtocols.completed} remaining
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Video Steward Card */}
+            <Card 
+              className={cn(
+                "bg-card/50 border-border hover:border-blue-500/50 transition-all duration-300 cursor-pointer group",
+                hoveredCard === 'video-steward' && "scale-105 shadow-lg shadow-blue-500/20"
+              )}
+              onMouseEnter={() => setHoveredCard('video-steward')}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => handleCardClick('video-steward')}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Video Steward</CardTitle>
+                  {loadingStates['video-steward'] ? (
+                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Video className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="text-2xl font-bold text-blue-500">
+                    Available
+                  </div>
+                  <div className="text-sm text-muted-foreground">Labor Rights Advocate</div>
+                  <div className="flex items-center space-x-1 text-xs text-green-500">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <span>Online Now</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Expert consultation available
                   </div>
                 </div>
               </CardContent>
