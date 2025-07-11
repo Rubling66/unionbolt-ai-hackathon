@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Trash2, AlertCircle, Zap, Download, MessageSquare, Sparkles, Clock, Copy, Check, Video, VideoOff } from 'lucide-react';
-import { UnionStewardVideo } from '@/components/UnionStewardVideo';
+import { UnionStewardVideo } from '@/components/video-chat/UnionStewardVideo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
