@@ -53,7 +53,7 @@ if (-not $SkipTokenPrompts) {
 
 # Validate script location
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$mainScript = Join-Path $scriptDir "automate-unionbolt-ai.ps1"
+$mainScript = Join-Path $scriptDir "automate-unionbolts-platform.ps1"
 $testScript = Join-Path $scriptDir "test-ai-agents.ps1"
 $configFile = Join-Path $scriptDir "automation-config.json"
 

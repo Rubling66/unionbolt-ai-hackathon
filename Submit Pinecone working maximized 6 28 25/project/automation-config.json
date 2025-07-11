@@ -1,5 +1,5 @@
 {
-  "project_name": "unionbolt-ai-hackathon",
+  "project_name": "unionbolts-platform",
   "ports": {
     "anythingllm": 3001,
     "nextjs": 3000,

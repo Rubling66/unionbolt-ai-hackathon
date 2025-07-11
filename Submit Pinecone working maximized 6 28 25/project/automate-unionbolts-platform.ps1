@@ -1,17 +1,17 @@
-# UnionBolt AI Complete Automation Script
+# UnionBolts Platform Complete Automation Script
 # Automates AnythingLLM setup, ngrok tunneling, Vercel deployment, and testing
 
 param(
     [string]$VercelToken = "",
     [string]$NgrokAuthToken = "",
-    [string]$ProjectName = "unionbolt-ai-hackathon"
+    [string]$ProjectName = "unionbolts-platform"
 )
 
 # Configuration
 $ErrorActionPreference = "Stop"
 $AnythingLLMPort = 3001
 $NgrokPort = 3001
-$LogFile = "unionbolt-automation.log"
+$LogFile = "unionbolts-automation.log"
 
 # Logging function
 function Write-Log {

@@ -1,9 +1,10 @@
-# Netlify Deployment Guide for UnionBolt AI
+# Netlify Deployment Guide for UnionBolts Platform
 
 ## 🎉 GitHub Repository Ready!
 
 Your project has been successfully pushed to GitHub:
-**Repository:** https://github.com/Rubling66/unionbolt-ai-hackathon
+**Repository:** https://github.com/Rubling66/unionbolts-platform
+**Platform:** UnionBolts.com - AI-Powered Workplace Management
 
 ## Step-by-Step Netlify Deployment
 
@@ -13,7 +14,7 @@ Your project has been successfully pushed to GitHub:
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Authorize Netlify to access your GitHub account
-5. Select the repository: `Rubling66/unionbolt-ai-hackathon`
+5. Select the repository: `Rubling66/unionbolts-platform`
 
 ### 2. Configure Build Settings
 
@@ -127,5 +128,6 @@ Netlify keeps all previous deployments. You can instantly rollback to any previo
 3. Test the deployment
 4. Update your domain settings
 
-**Repository:** https://github.com/Rubling66/unionbolt-ai-hackathon
+**Repository:** https://github.com/Rubling66/unionbolts-platform
+**Platform:** UnionBolts.com
 **Current Status:** ✅ Ready for Netlify deployment

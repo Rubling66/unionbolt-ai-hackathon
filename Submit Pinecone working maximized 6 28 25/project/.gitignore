@@ -46,7 +46,7 @@ dist/
 
 # PowerShell scripts (keep automation but exclude logs)
 *.ps1
-!automate-unionbolt-ai.ps1
+!automate-unionbolts-platform.ps1
 !run-automation.ps1
 !verify-deployment-status.ps1
 !verify-tavus-api.ps1
