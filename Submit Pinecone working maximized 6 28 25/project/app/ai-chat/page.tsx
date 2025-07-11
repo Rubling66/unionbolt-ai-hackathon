@@ -382,7 +382,7 @@ export default function AIChatPage() {
                    {/* Messages Area - Hidden when video chat is active */}
                    {!showVideoChat && (
                      <ScrollArea className="flex-1 px-4 sm:px-6" ref={scrollAreaRef}>
-                    <div className="space-y-4 pb-4">
+                       <div className="space-y-4 pb-4">
                       {persistedMessages.length === 0 && !showSuggestions && (
                         <div className="text-center py-12">
                           <Bot className="w-12 h-12 text-green-500 mx-auto mb-4 opacity-50" />
@@ -518,9 +518,10 @@ export default function AIChatPage() {
                         </div>
                       )}
                       
-                      <div ref={messagesEndRef} />
-                    </div>
-                  </ScrollArea>
+                        <div ref={messagesEndRef} />
+                      </div>
+                    </ScrollArea>
+                  )}
                   
                   {/* Error Display */}
                   {error && (
@@ -531,7 +532,6 @@ export default function AIChatPage() {
                       </div>
                     </div>
                   )}
-                )}
 
                   {/* Input Area - Hidden when video chat is active */}
                   {!showVideoChat && (
