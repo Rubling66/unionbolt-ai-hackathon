@@ -86,7 +86,12 @@
     "@stripe/react-stripe-js": "^2.8.1",
     "@paypal/react-paypal-js": "^8.7.0",
     "@google-pay/button-react": "^3.1.0",
+<<<<<<< HEAD
     "stripe": "^17.3.1"
+=======
+    "stripe": "^17.3.1",
+    
+>>>>>>> b3c695c9b10ff8c9cbb9d13c33efe47098ac11e5
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
