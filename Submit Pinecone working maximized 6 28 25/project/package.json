@@ -85,20 +85,12 @@
     "@stripe/stripe-js": "^4.8.0",
     "@stripe/react-stripe-js": "^2.8.1",
     "@paypal/react-paypal-js": "^8.7.0",
-    "@google-pay/button-react": "^3.1.0",
-<<<<<<< HEAD
-    "stripe": "^17.3.1"
-=======
-    "stripe": "^17.3.1",
-    
->>>>>>> b3c695c9b10ff8c9cbb9d13c33efe47098ac11e5
+    "@google-pay/button-react": "^3.1.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/user-event": "^14.5.2",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "@types/jest": "^29.5.14"
+    "jest": "^29.7.0"
   }
 }
