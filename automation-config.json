@@ -1,0 +1,39 @@
+{
+  "project_name": "unionbolts-platform",
+  "ports": {
+    "anythingllm": 3001,
+    "nextjs": 3000,
+    "ngrok_api": 4040
+  },
+  "endpoints": {
+    "local_nextjs": "http://localhost:3000",
+    "anythingllm": "http://localhost:3001",
+    "ngrok_api": "http://localhost:4040/api/tunnels"
+  },
+  "ai_agents": {
+    "total_count": 19,
+    "test_endpoints": [
+      "/api/chat",
+      "/api/test-connection",
+      "/api/agents/status",
+      "/api/health"
+    ]
+  },
+  "vercel": {
+    "environment_variables": [
+      "ANYTHINGLLM_URL",
+      "NGROK_TUNNEL_URL",
+      "AI_AGENTS_ENDPOINT"
+    ]
+  },
+  "installation": {
+    "anythingllm_package": "@mintplex-labs/anythingllm",
+    "ngrok_download_url": "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip",
+    "vercel_cli": "vercel"
+  },
+  "timeouts": {
+    "service_start": 10,
+    "http_request": 30,
+    "deployment": 300
+  }
+}
