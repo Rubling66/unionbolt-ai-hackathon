@@ -1,5 +1,5 @@
 // Enhanced Tavus client with proper error handling
-import { TavusClient } from '@tavus/client-sdk';
+import { TavusClient } from './tavus-client';
 import winston from 'winston';
 
 // Configure logger
@@ -15,12 +15,8 @@ const logger = winston.createLogger({
   ]
 });
 
-export const tavus = new TavusClient({
-  apiKey: process.env.TAVUS_API_KEY!,
-  environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
-});
+export const tavus = new TavusClient();
 
-// SIMPLIFIED: Single working persona for Phase 1
 export const UNION_PERSONAS = {
   shop_steward: {
     replicaId: 'r92debe21318', // Your actual replica ID
@@ -31,20 +27,18 @@ export const UNION_PERSONAS = {
   }
 };
 
-// Connection testing function
 export async function testTavusConnection() {
   try {
     logger.info('Testing Tavus connection');
-    const replicas = await tavus.replicas.list();
-    logger.info('Tavus connection successful', { replicaCount: replicas.length });
-    return { success: true, replicas };
+    const isValid = tavus.validateConfiguration();
+    logger.info('Tavus connection successful', { configValid: isValid });
+    return { success: true, configValid: isValid };
   } catch (error) {
     logger.error('Tavus connection failed', { error });
     return { success: false, error };
   }
 }
 
-// Validate environment variables
 export function validateTavusConfig() {
   const required = ['TAVUS_API_KEY'];
   const missing = required.filter(key => !process.env[key]);

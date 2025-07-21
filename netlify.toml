@@ -3,7 +3,7 @@
   publish = ".next"
   
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
   NODE_OPTIONS = "--max-old-space-size=4096"
   SKIP_PREFLIGHT_CHECK = "true"
