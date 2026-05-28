@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databaseManager } from '@/lib/database-manager';
+import { searchByText } from '@/lib/pinecone';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -17,23 +18,23 @@ interface TokenUsage {
   total: number;
 }
 
-// Enhanced logging function
+const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
+
 function logChatAPI(context: string, data: any) {
   console.log(`[Chat API] ${context}:`, {
     ...data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }
 
 export async function POST(request: NextRequest) {
   logChatAPI('Starting chat request', {
     nodeEnv: process.env.NODE_ENV,
-    databaseType: 'internal',
-    assistantType: 'deepseek-r1'
+    useRealAI: process.env.NEXT_PUBLIC_USE_REAL_AI === 'true',
   });
-  
+
   try {
-    // Parse request body
+    // ── Parse body ──────────────────────────────────────────────────────
     let body: ChatRequest;
     try {
       body = await request.json();
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const { messages, conversationId } = body;
 
-    // Validate input
+    // ── Validate ────────────────────────────────────────────────────────
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       logChatAPI('Invalid messages array', { messages, conversationId });
       return NextResponse.json(
@@ -56,11 +57,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate message structure
     for (let i = 0; i < messages.length; i++) {
-      const message = messages[i];
-      if (!message.role || !message.content || typeof message.content !== 'string') {
-        logChatAPI('Invalid message structure', { messageIndex: i, message });
+      const msg = messages[i];
+      if (!msg.role || !msg.content || typeof msg.content !== 'string') {
+        logChatAPI('Invalid message structure', { messageIndex: i, message: msg });
         return NextResponse.json(
           { error: `Invalid message structure at index ${i}` },
           { status: 400 }
@@ -68,127 +68,156 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Limit conversation history to last 5 messages for efficiency
-    const limitedMessages = messages.slice(-5);
+    // ── Limit context window ────────────────────────────────────────────
+    const limitedMessages = messages.slice(-10);
     logChatAPI('Processing messages', {
       originalCount: messages.length,
       limitedCount: limitedMessages.length,
-      conversationId
+      conversationId,
     });
 
-    // Get the user's latest message
     const userMessage = limitedMessages[limitedMessages.length - 1];
-    const context = limitedMessages.slice(0, -1).map(msg => msg.content);
+    const previousMessages = limitedMessages.slice(0, -1);
 
-    // Generate AI response using database manager
-    let aiResponse;
+    // ── RAG pipeline ────────────────────────────────────────────────────
+    let ragContext = '';
     try {
-      // Check database connection status
-      const status = databaseManager.getStatus();
-      
-      if (status.connected) {
-        // Use database manager for enhanced responses
-        aiResponse = await databaseManager.queryAssistant(userMessage.content, context);
-        
-        logChatAPI('Database response generated successfully', {
-          tokenUsage: aiResponse.tokenUsage,
-          responseLength: aiResponse.response.length
-        });
-      } else {
-        // Fallback to local knowledge base
-        throw new Error('Database connection not available');
+      const searchResults = await searchByText(userMessage.content, 5);
+      if (searchResults.matches.length > 0) {
+        ragContext = searchResults.matches
+          .filter(m => m.metadata?.text)
+          .map((m, i) => `[Document ${i + 1}] (relevance: ${(m.score * 100).toFixed(0)}%)\n${m.metadata!.text}`)
+          .join('\n\n');
+        logChatAPI('RAG context found', { matchCount: searchResults.matches.length });
       }
-    } catch (responseError) {
-      logChatAPI('AI response generation failed, using fallback', { error: responseError });
-      
-      // Use fallback response
-      const fallbackMessage = getFallbackResponse(userMessage.content);
-      aiResponse = {
-        response: fallbackMessage,
-        tokenUsage: {
-          prompt: Math.ceil(userMessage.content.length / 4),
-          completion: Math.ceil(fallbackMessage.length / 4),
-          total: Math.ceil((userMessage.content.length + fallbackMessage.length) / 4)
-        }
-      };
+    } catch (searchError) {
+      logChatAPI('Pinecone search failed (non-fatal)', {
+        error: searchError instanceof Error ? searchError.message : 'Unknown error',
+      });
     }
 
-    // Generate or use existing conversation ID
+    // ── Build DeepSeek request ──────────────────────────────────────────
+    const systemPrompt = `You are an expert union advisor and workplace advocate. Your role is to help union members with questions about workplace safety, grievance procedures, contracts, benefits, training, and workers' rights.
+
+You provide accurate, practical, and empathetic advice based on labor law, collective bargaining practices, and union principles. When you have relevant document context, use it to ground your answers.
+
+Keep responses clear, structured, and actionable. Use markdown formatting for readability.`;
+
+    const deepseekMessages: { role: string; content: string }[] = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    // Add conversation history (user ↔ assistant)
+    for (const msg of previousMessages) {
+      deepseekMessages.push({ role: msg.role, content: msg.content });
+    }
+
+    // Build the final user message with RAG context
+    let finalUserContent = userMessage.content;
+    if (ragContext) {
+      finalUserContent = `Here are relevant documents from our knowledge base:\n\n${ragContext}\n\nBased on the above, please answer the following question:\n\n${userMessage.content}`;
+    }
+
+    deepseekMessages.push({ role: 'user', content: finalUserContent });
+
+    // ── Call DeepSeek API ───────────────────────────────────────────────
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      logChatAPI('DEEPSEEK_API_KEY not set');
+      return NextResponse.json({
+        status: 'error',
+        error: 'DeepSeek API key not configured',
+        message: "I'm sorry, the AI system is not fully configured yet. Please ensure DEEPSEEK_API_KEY is set in your environment variables.",
+        conversationId: conversationId || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        assistant: 'unionbolt-ai-agent',
+      }, { status: 200 }); // 200 so the UI can display the message gracefully
+    }
+
+    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: deepseekMessages,
+        max_tokens: 1024,
+        temperature: 0.7,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      logChatAPI('DeepSeek API error', { status: response.status, body: errorBody });
+      return NextResponse.json({
+        status: 'error',
+        error: `DeepSeek API returned ${response.status}`,
+        message: "I'm sorry, the AI service is temporarily unavailable. Please try again shortly.",
+        conversationId: conversationId || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        assistant: 'unionbolt-ai-agent',
+      }, { status: 200 });
+    }
+
+    const data = await response.json();
+    const completionContent = data.choices?.[0]?.message?.content || '';
+
+    if (!completionContent) {
+      logChatAPI('DeepSeek returned empty response');
+      return NextResponse.json({
+        status: 'error',
+        error: 'Empty response from AI',
+        message: "I'm sorry, I received an empty response. Please try rephrasing your question.",
+        conversationId: conversationId || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
+        assistant: 'unionbolt-ai-agent',
+      }, { status: 200 });
+    }
+
+    const usage = data.usage || {};
+    const tokenUsage: TokenUsage = {
+      prompt: usage.prompt_tokens || 0,
+      completion: usage.completion_tokens || 0,
+      total: (usage.prompt_tokens || 0) + (usage.completion_tokens || 0),
+    };
+
     const responseConversationId = conversationId || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Prepare successful response
-    const responseData = {
-      message: aiResponse.response,
-      tokenUsage: aiResponse.tokenUsage,
+    logChatAPI('Response generated successfully', {
+      conversationId: responseConversationId,
+      tokenUsage,
+      responseLength: completionContent.length,
+    });
+
+    return NextResponse.json({
+      message: completionContent,
+      tokenUsage,
       conversationId: responseConversationId,
       timestamp: new Date().toISOString(),
       messagesInContext: limitedMessages.length,
-      assistant: 'deepseek-r1-agent',
-      status: 'success'
-    };
-
-    logChatAPI('Sending successful response', {
-      conversationId: responseConversationId,
-      tokenUsage: aiResponse.tokenUsage
+      assistant: 'unionbolt-ai-agent',
+      status: 'success',
     });
-
-    return NextResponse.json(responseData);
-
   } catch (error) {
-    // Comprehensive error logging
     logChatAPI('Unhandled API error', {
       error: error instanceof Error ? {
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       } : error,
       url: request.url,
-      method: request.method
+      method: request.method,
     });
-    
-    // Determine appropriate error response
-    let errorMessage = 'Internal server error';
-    let statusCode = 500;
-    
-    if (error instanceof SyntaxError) {
-      errorMessage = 'Invalid JSON format';
-      statusCode = 400;
-    } else if (error instanceof TypeError) {
-      errorMessage = 'Invalid request format';
-      statusCode = 400;
-    }
-    
-    // Return error response with fallback message
+
     return NextResponse.json({
       status: 'error',
-      error: errorMessage,
-      details: error instanceof Error ? error.message : 'Unknown error',
-      fallbackMessage: "I'm experiencing technical difficulties. For immediate union assistance, please contact your steward or union office directly.",
+      error: 'Internal server error',
+      message: "I'm experiencing technical difficulties. For immediate union assistance, please contact your steward or union office directly.",
       timestamp: new Date().toISOString(),
-      assistant: 'deepseek-r1-agent'
-    }, { status: statusCode });
+      assistant: 'unionbolt-ai-agent',
+    }, { status: 500 });
   }
-}
-
-// Enhanced fallback response function
-function getFallbackResponse(userMessage: string): string {
-  const lowerMessage = userMessage.toLowerCase();
-  
-  if (lowerMessage.includes('safety') || lowerMessage.includes('osha') || lowerMessage.includes('hazard')) {
-    return "I'm currently experiencing connectivity issues, but here's essential safety information: Always follow OSHA regulations, report hazards immediately to your supervisor and union steward, use proper PPE, and never perform unsafe work. For detailed safety protocols, contact your union safety representative or try again shortly.";
-  }
-  
-  if (lowerMessage.includes('grievance') || lowerMessage.includes('complaint') || lowerMessage.includes('dispute')) {
-    return "I'm temporarily offline, but here's basic grievance guidance: Document the issue with dates and witnesses, contact your union steward within the contract timeframe, and follow the formal grievance procedure outlined in your collective bargaining agreement. Your steward can provide immediate assistance.";
-  }
-  
-  if (lowerMessage.includes('benefits') || lowerMessage.includes('healthcare') || lowerMessage.includes('insurance')) {
-    return "I'm experiencing technical difficulties, but basic benefit information: Union members typically have comprehensive healthcare, dental, vision, retirement plans, and paid time off. Contact your benefits administrator or union office for specific details about your coverage and enrollment.";
-  }
-  
-  if (lowerMessage.includes('contract') || lowerMessage.includes('wages') || lowerMessage.includes('overtime')) {
-    return "I'm currently offline, but here's basic contract information: Your collective bargaining agreement covers wages, overtime pay, working conditions, and job security. Contact your union steward for specific contract questions or to request a copy of your current agreement.";
-  }
-  
-  return "I'm temporarily experiencing connectivity issues with the knowledge base. For immediate assistance with union matters, please contact your union steward or the union office directly. I'll be back online shortly to provide detailed guidance on safety, grievances, benefits, contracts, and training.";
 }

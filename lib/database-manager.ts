@@ -1,5 +1,9 @@
-// Internal Database Manager for UnionBolt AI
-// Replaces Pinecone with internal document storage and DeepSeek R1 processing
+// Database Manager for UnionBolt AI
+// Real RAG pipeline: Pinecone vector search → DeepSeek chat completion
+
+import { searchByText } from './pinecone';
+
+const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 
 interface DatabaseStatus {
   connected: boolean;
@@ -17,12 +21,17 @@ interface QueryResponse {
   };
 }
 
+interface DeepSeekMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 class DatabaseManager {
   private connectionStatus: DatabaseStatus = {
     connected: false,
     lastChecked: null,
     error: null,
-    assistantId: 'deepseek-r1-agent'
+    assistantId: 'unionbolt-ai-agent',
   };
 
   private isInitialized = false;
@@ -34,34 +43,36 @@ class DatabaseManager {
   private log(context: string, data: any) {
     console.log(`[DatabaseManager] ${context}:`, {
       ...data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   private async initialize() {
     try {
-      // Initialize internal database connection
-      // This would connect to your internal document storage
-      this.log('Initializing internal database connection', {
-        assistantId: this.connectionStatus.assistantId,
-        environment: process.env.NODE_ENV
+      this.log('Initializing DatabaseManager', {
+        hasDeepSeekKey: !!process.env.DEEPSEEK_API_KEY,
+        hasPineconeKey: !!process.env.PINECONE_API_KEY,
+        environment: process.env.NODE_ENV,
       });
 
-      // Simulate database connection
       await this.testConnection();
       this.isInitialized = true;
 
-      this.log('Database initialized successfully', {
-        assistantId: this.connectionStatus.assistantId
+      this.log('DatabaseManager initialized', {
+        assistantId: this.connectionStatus.assistantId,
       });
     } catch (error) {
-      this.log('Database initialization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+      this.log('Initialization failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       this.connectionStatus.error = error instanceof Error ? error.message : 'Unknown error';
     }
   }
 
+  /**
+   * Test connectivity to DeepSeek API.
+   * This sends a minimal request to verify the key is valid.
+   */
   async testConnection(): Promise<{
     connected: boolean;
     assistantId: string;
@@ -69,47 +80,59 @@ class DatabaseManager {
     responseTime?: number;
   }> {
     const startTime = Date.now();
-    
+
     try {
-      // Test internal database connection
-      // Replace this with actual database connection test
-      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate connection test
-      
+      const apiKey = process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) {
+        throw new Error('DEEPSEEK_API_KEY environment variable is not set');
+      }
+
+      const response = await fetch(`${DEEPSEEK_BASE_URL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`DeepSeek API error (${response.status}): ${body}`);
+      }
+
       const responseTime = Date.now() - startTime;
 
       this.connectionStatus = {
         connected: true,
         lastChecked: new Date(),
         error: null,
-        assistantId: this.connectionStatus.assistantId
+        assistantId: this.connectionStatus.assistantId,
       };
 
-      this.log('Database connection test successful', {
+      this.log('Connection test successful', {
         responseTime,
-        assistantId: this.connectionStatus.assistantId
       });
 
       return {
         connected: true,
         assistantId: this.connectionStatus.assistantId,
-        responseTime
+        responseTime,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.connectionStatus = {
         connected: false,
         lastChecked: new Date(),
         error: errorMessage,
-        assistantId: this.connectionStatus.assistantId
+        assistantId: this.connectionStatus.assistantId,
       };
 
-      this.log('Database connection test failed', { error: errorMessage });
+      this.log('Connection test failed', { error: errorMessage });
 
       return {
         connected: false,
         assistantId: this.connectionStatus.assistantId,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -118,31 +141,121 @@ class DatabaseManager {
     return { ...this.connectionStatus };
   }
 
+  /**
+   * Query the AI assistant with RAG.
+   * 1. Search Pinecone for relevant documents
+   * 2. Build an augmented prompt with the search results
+   * 3. Send to DeepSeek for completion
+   */
   async queryAssistant(query: string, context: string[] = []): Promise<QueryResponse> {
     try {
       if (!this.connectionStatus.connected) {
-        throw new Error('Database connection not available');
+        // Try to connect if not already connected
+        await this.testConnection();
+        if (!this.connectionStatus.connected) {
+          throw new Error('DeepSeek API connection not available');
+        }
       }
 
-      this.log('Processing query with DeepSeek R1', {
+      this.log('Processing query with RAG pipeline', {
         queryLength: query.length,
-        contextItems: context.length
+        contextItems: context.length,
       });
 
-      // Generate AI response using DeepSeek R1 and internal document storage
-      const response = await this.generateDeepSeekResponse(query, context);
-      
-      // Calculate token usage
-      const promptTokens = Math.ceil((query + context.join(' ')).length / 4);
-      const completionTokens = Math.ceil(response.length / 4);
-      
-      return {
-        response,
-        tokenUsage: {
-          prompt: promptTokens,
-          completion: completionTokens,
-          total: promptTokens + completionTokens
+      // Step 1: Search Pinecone for relevant documents
+      let ragContext = '';
+      try {
+        const searchResults = await searchByText(query, 5);
+        if (searchResults.matches.length > 0) {
+          ragContext = searchResults.matches
+            .filter(m => m.metadata?.text)
+            .map((m, i) => `[Document ${i + 1}] (relevance: ${(m.score * 100).toFixed(0)}%)\n${m.metadata!.text}`)
+            .join('\n\n');
+          this.log('RAG context found', { matchCount: searchResults.matches.length });
+        } else {
+          this.log('No RAG documents found', {});
         }
+      } catch (searchError) {
+        this.log('Pinecone search failed, proceeding without RAG context', {
+          error: searchError instanceof Error ? searchError.message : 'Unknown error',
+        });
+      }
+
+      // Step 2: Build messages array
+      const systemPrompt = `You are an expert union advisor and workplace advocate. Your role is to help union members with questions about workplace safety, grievance procedures, contracts, benefits, training, and workers' rights.
+
+You provide accurate, practical, and empathetic advice based on labor law, collective bargaining practices, and union principles. When you have relevant document context, use it to ground your answers. If you don't know something, say so honestly.
+
+Keep responses clear, structured, and actionable. Use markdown formatting for readability.`;
+
+      const messages: DeepSeekMessage[] = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Add previous conversation context (last 5 messages)
+      for (const ctx of context.slice(-5)) {
+        messages.push({ role: 'user' as const, content: ctx });
+        // Approximate: we don't have assistant responses in context array,
+        // but the UI sends alternation properly via the chat route.
+      }
+
+      // Add RAG context if available
+      let userContent = query;
+      if (ragContext) {
+        userContent = `Here are relevant documents from our knowledge base:\n\n${ragContext}\n\nBased on the above, please answer the following question:\n\n${query}`;
+      }
+
+      messages.push({ role: 'user', content: userContent });
+
+      // Step 3: Call DeepSeek API
+      const apiKey = process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) {
+        throw new Error('DEEPSEEK_API_KEY environment variable is not set');
+      }
+
+      const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages,
+          max_tokens: 1024,
+          temperature: 0.7,
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`DeepSeek API error (${response.status}): ${body}`);
+      }
+
+      const data = await response.json();
+
+      const completionContent = data.choices?.[0]?.message?.content || '';
+      if (!completionContent) {
+        throw new Error('DeepSeek returned empty response');
+      }
+
+      const usage = data.usage || {};
+      const tokenUsage = {
+        prompt: usage.prompt_tokens || Math.ceil(messages.reduce((s, m) => s + m.content.length, 0) / 4),
+        completion: usage.completion_tokens || Math.ceil(completionContent.length / 4),
+        total: (usage.prompt_tokens || 0) + (usage.completion_tokens || 0) ||
+               Math.ceil((messages.reduce((s, m) => s + m.content.length, 0) + completionContent.length) / 4),
+      };
+
+      this.log('DeepSeek response received', {
+        tokenUsage,
+        responseLength: completionContent.length,
+      });
+
+      return {
+        response: completionContent,
+        tokenUsage,
       };
     } catch (error) {
       this.log('Query failed', { error, query: query.substring(0, 100) });
@@ -150,143 +263,47 @@ class DatabaseManager {
     }
   }
 
-  private async generateDeepSeekResponse(query: string, context: string[]): Promise<string> {
-    const lowerQuery = query.toLowerCase();
-    
-    // Union knowledge base responses using internal document storage
-    if (lowerQuery.includes('safety') || lowerQuery.includes('osha') || lowerQuery.includes('hazard')) {
-      return `**Workplace Safety Guidelines (DeepSeek R1 Analysis):**
-
-• **OSHA Compliance**: All workplaces must follow OSHA safety standards and regulations
-• **Right to Safe Workplace**: You have the legal right to a safe work environment free from recognized hazards
-• **PPE Requirements**: Employers must provide necessary protective equipment at no cost to workers
-• **Hazard Reporting**: Report unsafe conditions immediately to your supervisor and union steward
-• **Safety Training**: Mandatory safety training must be provided for all job functions and equipment
-• **Accident Reporting**: All workplace injuries must be reported within 24 hours to management and union
-• **Safety Committees**: Union members participate in joint labor-management safety committees
-• **Refusal Rights**: You can refuse unsafe work without retaliation under OSHA Section 11(c)
-
-**Emergency Contacts:**
-- Union Safety Representative: Available 24/7 for safety concerns
-- OSHA Hotline: 1-800-321-OSHA (6742)
-- Emergency Services: 911
-
-**Next Steps:** Contact your union steward immediately for any safety concerns or to file a safety complaint.
-
-*Response generated using DeepSeek R1 with internal document analysis.*`;
-    }
-
-    if (lowerQuery.includes('grievance') || lowerQuery.includes('complaint') || lowerQuery.includes('dispute')) {
-      return `**Union Grievance Procedure (DeepSeek R1 Analysis):**
-
-**Step 1: Informal Resolution (5 business days)**
-• Discuss the issue with your immediate supervisor
-• Document the conversation with date, time, and witnesses present
-• Union steward may assist in informal discussion
-
-**Step 2: Formal Written Grievance (10 business days)**
-• File written grievance with union steward assistance
-• Include specific contract violations and requested remedy
-• Management has 10 business days to respond in writing
-
-**Step 3: Union-Management Meeting (15 business days)**
-• Union representatives meet with higher management
-• Present evidence and witness statements
-• Seek resolution through negotiation
-
-**Step 4: Arbitration (if needed)**
-• Independent arbitrator makes binding decision
-• Union covers arbitration costs for valid grievances
-• Final and binding resolution
-
-**Important Rights:**
-- Right to union representation at all disciplinary meetings
-- Protection against retaliation for filing grievances
-- Right to have steward present during investigations
-- Access to relevant documents and information
-
-**Time Limits:** Grievances must be filed within the timeframes specified in your contract. Contact your union steward immediately as time limits are strict and cannot be extended.
-
-*Response generated using DeepSeek R1 with internal document analysis.*`;
-    }
-
-    if (lowerQuery.includes('contract') || lowerQuery.includes('agreement') || lowerQuery.includes('benefits')) {
-      return `**Union Contract Information (DeepSeek R1 Analysis):**
-
-**Key Contract Provisions:**
-• **Wages**: Current wage scales and progression schedules
-• **Benefits**: Health insurance, retirement, vacation, sick leave
-• **Working Conditions**: Hours, overtime, shift differentials
-• **Job Security**: Layoff procedures, recall rights, seniority systems
-• **Grievance Process**: Step-by-step dispute resolution procedures
-
-**Recent Contract Updates:**
-• Wage increases negotiated for current term
-• Enhanced safety protocols implemented
-• Improved healthcare coverage options
-• Additional paid time off provisions
-
-**How to Access Full Contract:**
-• Contact your union steward for physical copy
-• Access digital version through union website
-• Review specific sections during union meetings
-
-**Questions About Your Contract:**
-• Speak with your union steward for clarification
-• Attend monthly union meetings for updates
-• Contact union office for detailed explanations
-
-*Response generated using DeepSeek R1 with internal document analysis.*`;
-    }
-
-    // Default response for general queries
-    return `**UnionBolt AI Assistant (DeepSeek R1):**
-
-I'm here to help with your union-related questions and workplace concerns. I can provide information about:
-
-• **Safety & OSHA Compliance**
-• **Grievance Procedures**
-• **Contract Information**
-• **Workers' Rights**
-• **Benefits & Compensation**
-• **Workplace Policies**
-
-For specific questions about your situation, please provide more details about what you'd like to know. I'll analyze your query using our internal document storage and DeepSeek R1 processing to provide the most accurate and helpful information.
-
-**Need immediate assistance?** Contact your union steward or call the union office during business hours.
-
-*Response generated using DeepSeek R1 with internal document analysis.*`;
-  }
-
-  // Health check method
+  /**
+   * Health check for the entire system.
+   */
   async healthCheck(): Promise<{
     status: 'healthy' | 'unhealthy';
     details: {
-      database: boolean;
-      deepseekR1: boolean;
-      documentStorage: boolean;
+      deepseek: boolean;
+      pinecone: boolean;
+      ragPipeline: boolean;
     };
   }> {
     try {
       const connectionTest = await this.testConnection();
-      
+
+      // Also check if Pinecone is reachable
+      let pineconeReachable = false;
+      try {
+        const { verifyPineconeConnection } = await import('./pinecone');
+        const pcResult = await verifyPineconeConnection();
+        pineconeReachable = pcResult.connected;
+      } catch {
+        pineconeReachable = false;
+      }
+
       return {
         status: connectionTest.connected ? 'healthy' : 'unhealthy',
         details: {
-          database: connectionTest.connected,
-          deepseekR1: true, // Assume DeepSeek R1 is available
-          documentStorage: true // Assume internal document storage is available
-        }
+          deepseek: connectionTest.connected,
+          pinecone: pineconeReachable,
+          ragPipeline: connectionTest.connected && pineconeReachable,
+        },
       };
     } catch (error) {
       this.log('Health check failed', { error });
       return {
         status: 'unhealthy',
         details: {
-          database: false,
-          deepseekR1: false,
-          documentStorage: false
-        }
+          deepseek: false,
+          pinecone: false,
+          ragPipeline: false,
+        },
       };
     }
   }

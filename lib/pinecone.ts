@@ -1,6 +1,7 @@
-import { Pinecone } from '@pinecone-database/pinecone';
+import { Pinecone, Index } from '@pinecone-database/pinecone';
 
-// Enhanced logging function
+// Pinecone client singleton with real vector database operations
+
 function logPinecone(context: string, data: any) {
   console.log(`[Pinecone] ${context}:`, {
     ...data,
@@ -8,162 +9,273 @@ function logPinecone(context: string, data: any) {
   });
 }
 
-// Validate environment variables with detailed logging
-function validateEnvironment() {
-  logPinecone('Environment validation', {
-    hasApiKey: !!process.env.PINECONE_API_KEY,
-    apiKeyFormat: process.env.PINECONE_API_KEY?.startsWith('pcsk_') ? 'valid' : 'invalid',
-    hasAssistantId: !!process.env.PINECONE_ASSISTANT_ID,
-    nodeEnv: process.env.NODE_ENV
-  });
+let pinecone: Pinecone | null = null;
+let isInitialized = false;
 
-  if (!process.env.PINECONE_API_KEY) {
-    throw new Error('PINECONE_API_KEY environment variable is required');
+function getClient(): Pinecone {
+  if (!pinecone) {
+    const apiKey = process.env.PINECONE_API_KEY;
+    if (!apiKey) {
+      throw new Error('PINECONE_API_KEY environment variable is not set');
+    }
+    pinecone = new Pinecone({ apiKey });
+    isInitialized = true;
   }
-
-  if (!process.env.PINECONE_API_KEY.startsWith('pcsk_')) {
-    throw new Error('PINECONE_API_KEY must be a valid Pinecone API key starting with "pcsk_"');
-  }
+  return pinecone;
 }
 
-// Initialize Pinecone client with error handling
-let pinecone: Pinecone;
-
-try {
-  validateEnvironment();
-  
-  pinecone = new Pinecone({
-    apiKey: process.env.PINECONE_API_KEY!,
-  });
-  
-  logPinecone('Client initialized successfully', {
-    apiKeyPrefix: process.env.PINECONE_API_KEY!.substring(0, 8) + '...'
-  });
-} catch (error) {
-  logPinecone('Client initialization failed', {
-    error: error instanceof Error ? error.message : 'Unknown error'
-  });
-  
-  // Create a mock client that will fail gracefully
-  pinecone = {} as Pinecone;
+/** Get the configured index name from env */
+function getIndexName(): string {
+  return process.env.PINECONE_INDEX_NAME || 'union-documents';
 }
 
-export { pinecone };
+/**
+ * Get a handle to the configured Pinecone index.
+ * The index must already exist in your Pinecone project.
+ */
+export function getIndex(): Index {
+  const pc = getClient();
+  return pc.index(getIndexName());
+}
 
-// Connection verification function with comprehensive error handling
+/**
+ * List all indexes in the Pinecone project.
+ */
+export async function listIndexes(): Promise<string[]> {
+  const pc = getClient();
+  const result = await pc.listIndexes();
+  return result.indexes?.map((idx: any) => idx.name) || [];
+}
+
+/**
+ * Describe a specific index.
+ */
+export async function describeIndex(indexName?: string) {
+  const pc = getClient();
+  return pc.describeIndex(indexName || getIndexName());
+}
+
+/**
+ * Create a new serverless index if it doesn't exist.
+ */
+export async function ensureIndex(
+  name?: string,
+  dimension: number = 1024,
+  metric: 'cosine' | 'euclidean' | 'dotproduct' = 'cosine'
+): Promise<void> {
+  const pc = getClient();
+  const indexName = name || getIndexName();
+  const existing = await listIndexes();
+  if (existing.includes(indexName)) {
+    logPinecone('Index already exists', { indexName });
+    return;
+  }
+  await pc.createIndex({
+    name: indexName,
+    dimension,
+    metric,
+    spec: {
+      serverless: {
+        cloud: 'aws',
+        region: 'us-east-1'
+      }
+    }
+  });
+  logPinecone('Index created', { indexName, dimension, metric });
+}
+
+/**
+ * Delete an index.
+ */
+export async function deleteIndex(indexName?: string): Promise<void> {
+  const pc = getClient();
+  const name = indexName || getIndexName();
+  await pc.deleteIndex(name);
+  logPinecone('Index deleted', { name });
+}
+
+/**
+ * Upsert vectors into the index.
+ */
+export async function upsertVectors(
+  vectors: { id: string; values: number[]; metadata?: Record<string, any> }[]
+): Promise<void> {
+  const index = getIndex();
+  await index.upsert(vectors);
+  logPinecone('Upserted vectors', { count: vectors.length });
+}
+
+/**
+ * Query the index with a raw vector.
+ */
+export async function queryVectors(
+  vector: number[],
+  topK: number = 10,
+  filter?: Record<string, any>
+): Promise<{
+  matches: { id: string; score: number; metadata?: Record<string, any> }[];
+}> {
+  const index = getIndex();
+  const result = await index.query({
+    vector,
+    topK,
+    ...(filter ? { filter } : {}),
+    includeMetadata: true,
+  });
+  return {
+    matches: result.matches?.map(m => ({
+      id: m.id,
+      score: m.score || 0,
+      metadata: m.metadata as Record<string, any> | undefined,
+    })) || [],
+  };
+}
+
+/**
+ * Delete vectors by ID.
+ */
+export async function deleteVectors(ids: string[]): Promise<void> {
+  const index = getIndex();
+  await index.deleteMany(ids);
+  logPinecone('Deleted vectors', { count: ids.length });
+}
+
+/**
+ * Delete all vectors from the index.
+ */
+export async function clearIndex(): Promise<void> {
+  const index = getIndex();
+  await index.deleteAll();
+  logPinecone('Cleared all vectors', {});
+}
+
+/**
+ * Fetch vectors by ID.
+ */
+export async function fetchVectors(ids: string[]): Promise<Record<string, any>> {
+  const index = getIndex();
+  const result = await index.fetch(ids);
+  return result.records || {};
+}
+
+// ---- Embedding helpers via Pinecone inference ----
+
+/**
+ * Embed a text string using Pinecone's built-in inference.
+ * Uses the multilingual-e5-large model by default.
+ */
+export async function embedText(
+  text: string,
+  inputType: 'query' | 'passage' = 'query'
+): Promise<number[]> {
+  const pc = getClient();
+  const result = await pc.inference.embed(
+    'multilingual-e5-large',
+    [text],
+    { inputType, truncate: 'END' }
+  );
+  const embedding = result.data?.[0]?.values;
+  if (!embedding) throw new Error('Embedding failed — no values returned');
+  return embedding;
+}
+
+/**
+ * Embed multiple text passages at once.
+ */
+export async function embedTexts(
+  texts: string[],
+  inputType: 'query' | 'passage' = 'passage'
+): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const pc = getClient();
+  const result = await pc.inference.embed(
+    'multilingual-e5-large',
+    texts,
+    { inputType, truncate: 'END' }
+  );
+  return result.data?.map(d => d.values) || [];
+}
+
+// ---- Composite helpers ----
+
+/**
+ * Search the index by embedding the query text first.
+ */
+export async function searchByText(
+  query: string,
+  topK: number = 10,
+  filter?: Record<string, any>
+): Promise<{
+  matches: { id: string; score: number; metadata?: Record<string, any> }[];
+}> {
+  const vector = await embedText(query, 'query');
+  return queryVectors(vector, topK, filter);
+}
+
+// ---- Verification & health ----
+
 export async function verifyPineconeConnection(): Promise<{
   connected: boolean;
-  assistantId: string;
+  indexName: string;
   error?: string;
   details?: any;
 }> {
   try {
-    logPinecone('Starting connection verification', {
-      hasClient: !!pinecone,
-      hasListIndexes: typeof pinecone.listIndexes === 'function'
-    });
-
-    // Validate environment variables before attempting connection
-    if (!process.env.PINECONE_API_KEY) {
-      throw new Error('PINECONE_API_KEY environment variable is not set');
-    }
-    
-    if (!process.env.PINECONE_API_KEY.startsWith('pcsk_')) {
-      throw new Error('Invalid PINECONE_API_KEY format. Must start with "pcsk_"');
-    }
-
-    // Test connection by listing indexes with timeout
-    const startTime = Date.now();
-    
-    if (!pinecone.listIndexes) {
-      throw new Error('Pinecone client not properly initialized');
-    }
-
-    const indexes = await pinecone.listIndexes();
-    const endTime = Date.now();
-    
-    logPinecone('Connection successful', {
-      responseTime: endTime - startTime,
-      indexCount: indexes.indexes?.length || 0,
-      indexes: indexes.indexes?.map(idx => idx.name) || []
-    });
-    
+    const pc = getClient();
+    const indexes = await pc.listIndexes();
+    const indexName = getIndexName();
+    const indexExists = indexes.indexes?.some((i: any) => i.name === indexName);
     return {
       connected: true,
-      assistantId: process.env.PINECONE_ASSISTANT_ID || 'business-agent-bot',
+      indexName,
       details: {
-        responseTime: endTime - startTime,
-        indexCount: indexes.indexes?.length || 0
+        indexes: indexes.indexes?.map((i: any) => i.name) || [],
+        indexExists,
+        serverless: true,
       }
     };
   } catch (error) {
-    logPinecone('Connection failed', {
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      } : error
-    });
-    
     return {
       connected: false,
-      assistantId: process.env.PINECONE_ASSISTANT_ID || 'business-agent-bot',
+      indexName: getIndexName(),
       error: error instanceof Error ? error.message : 'Unknown error',
-      details: {
-        errorType: error instanceof Error ? error.constructor.name : 'Unknown',
-        timestamp: new Date().toISOString()
-      }
+      details: { errorType: error instanceof Error ? error.constructor.name : 'Unknown' },
     };
   }
 }
 
-// Get assistant configuration with validation
 export function getAssistantConfig() {
-  const config = {
-    assistantId: process.env.PINECONE_ASSISTANT_ID || 'business-agent-bot',
-    apiKey: process.env.PINECONE_API_KEY ? 
-      `***${process.env.PINECONE_API_KEY.slice(-4)}` : 
-      'not configured',
-    apiKeyValid: process.env.PINECONE_API_KEY?.startsWith('pcsk_') || false,
-    environment: process.env.NODE_ENV || 'development'
+  return {
+    indexName: getIndexName(),
+    apiKey: process.env.PINECONE_API_KEY
+      ? `***${process.env.PINECONE_API_KEY.slice(-4)}`
+      : 'not configured',
+    apiKeyValid: !!process.env.PINECONE_API_KEY?.startsWith('pcsk_'),
+    environment: process.env.NODE_ENV || 'development',
   };
-  
-  logPinecone('Assistant configuration', config);
-  return config;
 }
 
-// Health check function for monitoring
 export async function healthCheck(): Promise<{
   status: 'healthy' | 'unhealthy';
   checks: Record<string, boolean>;
   timestamp: string;
 }> {
   const checks: Record<string, boolean> = {
-    environmentVariables: !!(process.env.PINECONE_API_KEY && process.env.PINECONE_ASSISTANT_ID),
+    apiKeySet: !!process.env.PINECONE_API_KEY,
     apiKeyFormat: process.env.PINECONE_API_KEY?.startsWith('pcsk_') || false,
-    clientInitialized: !!pinecone && typeof pinecone.listIndexes === 'function'
   };
-  
-  let connectionCheck = false;
   try {
     const result = await verifyPineconeConnection();
-    connectionCheck = result.connected;
-  } catch (error) {
-    logPinecone('Health check connection failed', { error });
+    checks.connected = result.connected;
+  } catch {
+    checks.connected = false;
   }
-  
-  checks.connection = connectionCheck;
-  
-  const allHealthy = Object.values(checks).every(check => check === true);
-  
-  logPinecone('Health check completed', {
-    status: allHealthy ? 'healthy' : 'unhealthy',
-    checks
-  });
-  
+  const allHealthy = Object.values(checks).every(c => c === true);
   return {
     status: allHealthy ? 'healthy' : 'unhealthy',
     checks,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
+
+export { pinecone, isInitialized };
