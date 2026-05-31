@@ -123,7 +123,7 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
     // ── Call DeepSeek API ───────────────────────────────────────────────
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      logChatAPI('DEEPSEEK_API_KEY not set');
+      logChatAPI('DEEPSEEK_API_KEY not set', {});
       return NextResponse.json({
         status: 'error',
         error: 'DeepSeek API key not configured',
@@ -166,7 +166,7 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
     const completionContent = data.choices?.[0]?.message?.content || '';
 
     if (!completionContent) {
-      logChatAPI('DeepSeek returned empty response');
+      logChatAPI('DeepSeek returned empty response', {});
       return NextResponse.json({
         status: 'error',
         error: 'Empty response from AI',

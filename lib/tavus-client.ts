@@ -147,7 +147,7 @@ export class TavusClient {
   }
 
   // Daily.js integration helpers
-  static createDailyCall(roomUrl: string): DailyIframe {
+  static createDailyCall(roomUrl: string): any {
     return DailyIframe.createCallObject({
       url: roomUrl,
       showLeaveButton: true,
@@ -158,7 +158,7 @@ export class TavusClient {
   }
 
   static async joinCall(
-    callObject: DailyIframe,
+    callObject: any,
     container?: HTMLElement
   ): Promise<void> {
     try {
@@ -174,7 +174,7 @@ export class TavusClient {
     }
   }
 
-  static async leaveCall(callObject: DailyIframe): Promise<void> {
+  static async leaveCall(callObject: any): Promise<void> {
     try {
       await callObject.leave();
       callObject.destroy();

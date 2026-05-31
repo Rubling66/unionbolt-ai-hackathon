@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,7 @@ const pricingPlans = {
   }
 };
 
-export default function CheckoutPage() {
+function CheckoutPage() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'paypal' | 'googlepay'>('stripe');
@@ -312,6 +312,7 @@ export default function CheckoutPage() {
                 {selectedPaymentMethod === 'paypal' && (
                   <PayPalScriptProvider options={{
                     'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
+                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
                     currency: 'USD'
                   }}>
                     <PayPalPaymentForm
@@ -339,5 +340,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>}>
+      <CheckoutPage />
+    </Suspense>
   );
 }

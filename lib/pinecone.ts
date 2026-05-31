@@ -193,7 +193,7 @@ export async function embedTexts(
     texts,
     { inputType, truncate: 'END' }
   );
-  return result.data?.map(d => d.values) || [];
+  return (result.data?.map(d => d.values).filter((v): v is number[] => v !== undefined) || []);
 }
 
 // ---- Composite helpers ----

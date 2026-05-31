@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     
     logger.info('Creating Tavus conversation', { replicaId, personaId });
     
-    const conversation = await tavus.conversations.create({
+    const conversation = await tavus.createConversation({
       replica_id: replicaId,
       persona_id: personaId,
       properties: {
@@ -58,10 +58,8 @@ export async function POST(request: NextRequest) {
 // Health check endpoint
 export async function GET() {
   try {
-    const replicas = await tavus.replicas.list();
     return NextResponse.json({
       status: 'healthy',
-      replicaCount: replicas.length,
       availablePersonas: Object.keys(UNION_PERSONAS)
     });
   } catch (error) {

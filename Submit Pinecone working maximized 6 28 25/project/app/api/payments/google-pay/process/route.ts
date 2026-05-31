@@ -104,11 +104,11 @@ export async function POST(request: NextRequest) {
       currency: 'usd',
       customer: customer.id,
       payment_method_data: {
-        type: 'card',
+        type: 'card' as any,
         card: {
           token: stripeToken,
         },
-      },
+      } as any,
       confirmation_method: 'manual',
       confirm: true,
       metadata: {
