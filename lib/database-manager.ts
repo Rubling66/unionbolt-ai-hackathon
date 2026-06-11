@@ -1,7 +1,9 @@
-// Database Manager for UnionBolt AI
-// Real RAG pipeline: Pinecone vector search → DeepSeek chat completion
+// Database Manager for UnionBolt AI — refactored to use shared chat-service
+// Previously duplicated RAG + DeepSeek logic from chat route.
+// Now delegates to lib/chat-service.ts for all AI operations.
 
 import { searchByText } from './pinecone';
+import type { QueryResponse } from './chat-service';
 
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 
@@ -10,20 +12,6 @@ interface DatabaseStatus {
   lastChecked: Date | null;
   error: string | null;
   assistantId: string;
-}
-
-interface QueryResponse {
-  response: string;
-  tokenUsage: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
-}
-
-interface DeepSeekMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
 }
 
 class DatabaseManager {
@@ -40,7 +28,7 @@ class DatabaseManager {
     this.initialize();
   }
 
-  private log(context: string, data: any) {
+  private log(context: string, data: Record<string, unknown>) {
     console.log(`[DatabaseManager] ${context}:`, {
       ...data,
       timestamp: new Date().toISOString(),
@@ -65,13 +53,13 @@ class DatabaseManager {
       this.log('Initialization failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
-      this.connectionStatus.error = error instanceof Error ? error.message : 'Unknown error';
+      this.connectionStatus.error =
+        error instanceof Error ? error.message : 'Unknown error';
     }
   }
 
   /**
    * Test connectivity to DeepSeek API.
-   * This sends a minimal request to verify the key is valid.
    */
   async testConnection(): Promise<{
     connected: boolean;
@@ -89,7 +77,7 @@ class DatabaseManager {
 
       const response = await fetch(`${DEEPSEEK_BASE_URL}/models`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
       });
@@ -108,9 +96,7 @@ class DatabaseManager {
         assistantId: this.connectionStatus.assistantId,
       };
 
-      this.log('Connection test successful', {
-        responseTime,
-      });
+      this.log('Connection test successful', { responseTime });
 
       return {
         connected: true,
@@ -118,7 +104,8 @@ class DatabaseManager {
         responseTime,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
 
       this.connectionStatus = {
         connected: false,
@@ -143,119 +130,36 @@ class DatabaseManager {
 
   /**
    * Query the AI assistant with RAG.
-   * 1. Search Pinecone for relevant documents
-   * 2. Build an augmented prompt with the search results
-   * 3. Send to DeepSeek for completion
+   * Delegates to the shared chat-service for actual AI logic.
+   *
+   * @deprecated Prefer using `processChat` from `@/lib/chat-service` directly
+   *   for new code. This method is kept for backward compatibility with
+   *   existing consumers (test-connection route, DatabaseStatus component).
    */
-  async queryAssistant(query: string, context: string[] = []): Promise<QueryResponse> {
+  async queryAssistant(
+    query: string,
+    context: string[] = [],
+  ): Promise<QueryResponse> {
+    // Lazy-import to avoid circular deps during build
+    const { processChat } = await import('./chat-service');
+
+    const conversationMessages = context.map(content => ({
+      role: 'user' as const,
+      content,
+    }));
+
+    // Build messages array matching the ChatRequest format
+    const messages = [
+      ...conversationMessages.slice(-5),
+      { role: 'user' as const, content: query },
+    ];
+
     try {
-      if (!this.connectionStatus.connected) {
-        // Try to connect if not already connected
-        await this.testConnection();
-        if (!this.connectionStatus.connected) {
-          throw new Error('DeepSeek API connection not available');
-        }
-      }
-
-      this.log('Processing query with RAG pipeline', {
-        queryLength: query.length,
-        contextItems: context.length,
-      });
-
-      // Step 1: Search Pinecone for relevant documents
-      let ragContext = '';
-      try {
-        const searchResults = await searchByText(query, 5);
-        if (searchResults.matches.length > 0) {
-          ragContext = searchResults.matches
-            .filter(m => m.metadata?.text)
-            .map((m, i) => `[Document ${i + 1}] (relevance: ${(m.score * 100).toFixed(0)}%)\n${m.metadata!.text}`)
-            .join('\n\n');
-          this.log('RAG context found', { matchCount: searchResults.matches.length });
-        } else {
-          this.log('No RAG documents found', {});
-        }
-      } catch (searchError) {
-        this.log('Pinecone search failed, proceeding without RAG context', {
-          error: searchError instanceof Error ? searchError.message : 'Unknown error',
-        });
-      }
-
-      // Step 2: Build messages array
-      const systemPrompt = `You are an expert union advisor and workplace advocate. Your role is to help union members with questions about workplace safety, grievance procedures, contracts, benefits, training, and workers' rights.
-
-You provide accurate, practical, and empathetic advice based on labor law, collective bargaining practices, and union principles. When you have relevant document context, use it to ground your answers. If you don't know something, say so honestly.
-
-Keep responses clear, structured, and actionable. Use markdown formatting for readability.`;
-
-      const messages: DeepSeekMessage[] = [
-        { role: 'system', content: systemPrompt },
-      ];
-
-      // Add previous conversation context (last 5 messages)
-      for (const ctx of context.slice(-5)) {
-        messages.push({ role: 'user' as const, content: ctx });
-        // Approximate: we don't have assistant responses in context array,
-        // but the UI sends alternation properly via the chat route.
-      }
-
-      // Add RAG context if available
-      let userContent = query;
-      if (ragContext) {
-        userContent = `Here are relevant documents from our knowledge base:\n\n${ragContext}\n\nBased on the above, please answer the following question:\n\n${query}`;
-      }
-
-      messages.push({ role: 'user', content: userContent });
-
-      // Step 3: Call DeepSeek API
-      const apiKey = process.env.DEEPSEEK_API_KEY;
-      if (!apiKey) {
-        throw new Error('DEEPSEEK_API_KEY environment variable is not set');
-      }
-
-      const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages,
-          max_tokens: 1024,
-          temperature: 0.7,
-          stream: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`DeepSeek API error (${response.status}): ${body}`);
-      }
-
-      const data = await response.json();
-
-      const completionContent = data.choices?.[0]?.message?.content || '';
-      if (!completionContent) {
-        throw new Error('DeepSeek returned empty response');
-      }
-
-      const usage = data.usage || {};
-      const tokenUsage = {
-        prompt: usage.prompt_tokens || Math.ceil(messages.reduce((s, m) => s + m.content.length, 0) / 4),
-        completion: usage.completion_tokens || Math.ceil(completionContent.length / 4),
-        total: (usage.prompt_tokens || 0) + (usage.completion_tokens || 0) ||
-               Math.ceil((messages.reduce((s, m) => s + m.content.length, 0) + completionContent.length) / 4),
-      };
-
-      this.log('DeepSeek response received', {
-        tokenUsage,
-        responseLength: completionContent.length,
-      });
+      const result = await processChat({ messages });
 
       return {
-        response: completionContent,
-        tokenUsage,
+        response: result.message,
+        tokenUsage: result.tokenUsage,
       };
     } catch (error) {
       this.log('Query failed', { error, query: query.substring(0, 100) });
@@ -265,6 +169,7 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
 
   /**
    * Health check for the entire system.
+   * Delegates to chat-service for comprehensive checking.
    */
   async healthCheck(): Promise<{
     status: 'healthy' | 'unhealthy';
@@ -272,27 +177,22 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
       deepseek: boolean;
       pinecone: boolean;
       ragPipeline: boolean;
+      tavus: boolean;
     };
   }> {
     try {
-      const connectionTest = await this.testConnection();
-
-      // Also check if Pinecone is reachable
-      let pineconeReachable = false;
-      try {
-        const { verifyPineconeConnection } = await import('./pinecone');
-        const pcResult = await verifyPineconeConnection();
-        pineconeReachable = pcResult.connected;
-      } catch {
-        pineconeReachable = false;
-      }
+      const { systemHealthCheck } = await import('./chat-service');
+      const health = await systemHealthCheck();
 
       return {
-        status: connectionTest.connected ? 'healthy' : 'unhealthy',
+        status: health.status,
         details: {
-          deepseek: connectionTest.connected,
-          pinecone: pineconeReachable,
-          ragPipeline: connectionTest.connected && pineconeReachable,
+          deepseek: health.services.deepseek.connected,
+          pinecone: health.services.pinecone.connected,
+          ragPipeline:
+            health.services.deepseek.connected &&
+            health.services.pinecone.connected,
+          tavus: health.services.tavus.configured,
         },
       };
     } catch (error) {
@@ -303,6 +203,7 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
           deepseek: false,
           pinecone: false,
           ragPipeline: false,
+          tavus: false,
         },
       };
     }
@@ -313,5 +214,6 @@ Keep responses clear, structured, and actionable. Use markdown formatting for re
 export const databaseManager = new DatabaseManager();
 export default databaseManager;
 
-// Export types for use in other files
-export type { DatabaseStatus, QueryResponse };
+// Re-export types for backward compatibility
+export type { DatabaseStatus };
+export type { QueryResponse };

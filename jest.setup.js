@@ -91,9 +91,10 @@ jest.mock('@google-pay/button-react', () => ({
 // Mock fetch globally
 global.fetch = jest.fn();
 
-// Mock window.location
-Object.defineProperty(window, 'location', {
-  value: {
+// Mock window.location (wrap in try/catch to handle jsdom pre-defined)
+try {
+  Object.defineProperty(window, 'location', {
+    value: {
     href: 'http://localhost:3000',
     origin: 'http://localhost:3000',
     protocol: 'http:',
@@ -108,7 +109,10 @@ Object.defineProperty(window, 'location', {
     reload: jest.fn(),
   },
   writable: true,
-});
+  });
+} catch {
+  // location already defined by jsdom — skip
+}
 
 // Mock console methods to reduce noise in tests
 global.console = {

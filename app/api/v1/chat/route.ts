@@ -1,5 +1,6 @@
-// Refactored Chat API Route — clean, size-limited, uses shared chat-service
-// Maintains backward compatibility with existing API contract
+// API v1 Chat Endpoint — canonical versioned endpoint for UnionBolts platform
+// Implements the modular monolith architecture recommended by the audit.
+// /api/chat remains as a backward-compatible wrapper.
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -21,13 +22,13 @@ export async function POST(request: NextRequest) {
         message: `Request body exceeds ${MAX_REQUEST_SIZE_BYTES / 1024}KB limit. Please reduce the conversation length.`,
         timestamp: new Date().toISOString(),
         assistant: 'unionbolt-ai-agent',
+        apiVersion: 'v1',
       },
       { status: 413 },
     );
   }
 
   try {
-    // ── Parse and validate ──────────────────────────────────────────────
     let body: unknown;
     try {
       body = await request.json();
@@ -39,35 +40,52 @@ export async function POST(request: NextRequest) {
           message: 'The request body could not be parsed as JSON. Please check your input.',
           timestamp: new Date().toISOString(),
           assistant: 'unionbolt-ai-agent',
+          apiVersion: 'v1',
         },
         { status: 400 },
       );
     }
 
     const validatedRequest = validateChatRequest(body);
-
-    // ── Process with shared chat service ────────────────────────────────
     const response = await processChat(validatedRequest);
-    return NextResponse.json(response, { status: 200 });
+    
+    // Add API version metadata to response
+    return NextResponse.json(
+      { ...response, apiVersion: 'v1' },
+      { status: 200 },
+    );
 
   } catch (error) {
-    console.error('[Chat API] Unhandled error:', error);
-
+    console.error('[Chat API v1] Unhandled error:', error);
     const statusCode = error instanceof ValidationError ? 400 : 500;
-    // For validation errors, use 400; for everything else, 500
-    // but keep the message user-friendly
     const errorResponse = buildErrorResponse(error);
-    return NextResponse.json(errorResponse, { status: statusCode });
+    return NextResponse.json(
+      { ...errorResponse, apiVersion: 'v1' },
+      { status: statusCode },
+    );
   }
 }
 
-// Health check for the chat endpoint itself
+// API discovery endpoint
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
-    endpoint: '/api/chat',
+    endpoint: '/api/v1/chat',
     version: '2.0.0',
-    capabilities: ['rag-chat', 'pinecone-search', 'deepseek-completion'],
+    apiVersion: 'v1',
+    capabilities: [
+      'rag-chat',
+      'pinecone-semantic-search',
+      'deepseek-completion',
+      'multi-turn-conversation',
+    ],
+    limits: {
+      maxMessagesPerRequest: 50,
+      maxContextMessages: 10,
+      maxMessageLength: 8000,
+      maxRequestSize: '100KB',
+    },
+    models: ['deepseek-chat'],
     timestamp: new Date().toISOString(),
   });
 }
