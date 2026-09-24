@@ -100,7 +100,7 @@ export const grievances = pgTable('grievances', {
 }, (table) => ({
   userIdIdx: index('grievances_user_id_idx').on(table.userId),
   statusPriorityIdx: index('grievances_status_priority_idx').on(table.status, table.priority),
-  assignedToIdx: index('grievances_assigned_to_idx', table.assignedTo).where(sql`${table.assignedTo} IS NOT NULL`),
+  assignedToIdx: index('grievances_assigned_to_idx').on(table.assignedTo).where(sql`${table.assignedTo} IS NOT NULL`),
   titleSearchIdx: index('grievances_title_search_idx').using('gin', table.title, table.description),
 }));
 
