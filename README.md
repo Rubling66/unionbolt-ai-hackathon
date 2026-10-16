@@ -1,37 +1,25 @@
-# UnionBolts Platform
+# Union Bolts — public prototype
 
-🚀 **Revolutionary AI-powered workplace platform for union members**
+In-progress member software: safety notes, grievances, and contract questions. This repository is the public prototype. The newer private build is `unionbolts-platform-v2`.
 
-## About UnionBolts
+`package.json` sets `homepage` to `https://unionbolts.com`. This README does not treat that domain as a launched product. The dconsult page that links here says the same: in progress, and the product site is not claimed live.
 
-UnionBolts.com is a comprehensive AI-driven platform designed to empower union members with:
+## Stack in this repo
 
-- **Workplace Safety Management** - AI-powered safety concern reporting and resolution
-- **Grievance Processing** - Intelligent grievance filing and tracking system
-- **Contract Management** - Smart contract analysis and member guidance
-- **Video Communication** - Integrated Tavus AI video chat for personalized support
+- Next.js, React, TypeScript
+- Tailwind CSS and Radix UI
+- Jest (`npm test`)
+- Pinecone client, Daily, PayPal, and Google Pay packages are dependencies
 
-## Key Features
+Lint is `npm run lint` (`next lint`). Tests are `npm test`. Code format is recorded in `docs/CODE_FORMAT.md`.
 
-✅ **AI-Powered Gatekeeper** - Intelligent routing of member queries
-✅ **DeepSeek R1 Integration** - Advanced AI responses for complex workplace issues
-✅ **Real-time Database** - Instant access to union resources and documentation
-✅ **Secure Platform** - Enterprise-grade security for sensitive union data
-✅ **Modern UI/UX** - Intuitive interface built with Next.js and Tailwind CSS
+## Run
 
-## Technology Stack
+```powershell
+npm install
+npm run dev
+```
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: Tailwind CSS, Radix UI Components
-- **AI Integration**: DeepSeek R1, Pinecone Vector Database
-- **Video**: Tavus AI Video Chat
-- **Payments**: Stripe, PayPal, Google Pay
-- **Testing**: Jest, React Testing Library
+## Notation
 
-## Live Platform
-
-🌐 **Visit**: [unionbolts.com](https://unionbolts.com)
-
----
-
-*Empowering union members through intelligent technology*
+Say what the screen does. Do not write a member count, a security certification, or "revolutionary" in code comments or in this file. A comment records a routing rule or a reason a vendor call stays behind a flag.
