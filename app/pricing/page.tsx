@@ -200,7 +200,7 @@ const featureCategories = [
     icon: Scale,
     features: [
       { key: 'grievanceFiling', name: 'Grievance Filing', icon: AlertTriangle, description: 'Digital grievance filing and tracking system' },
-      { key: 'supportResponse', name: 'Support Response Time', icon: Clock, description: 'Guaranteed response time for support requests' }
+      { key: 'supportResponse', name: 'Support Response Time', icon: Clock, description: 'Label on this prototype. Not a service promise.' }
     ]
   },
   {
@@ -227,42 +227,42 @@ const faqData = [
   {
     id: 1,
     question: "Can I change my plan anytime?",
-    answer: "Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate any billing differences. If you upgrade mid-cycle, you'll only pay the difference for the remaining time. Downgrades will credit your account for future billing.",
+    answer: "There is no billing account to upgrade. The plan names on this screen are prototype labels.",
     icon: RefreshCw,
     category: "billing"
   },
   {
     id: 2,
-    question: "What's included in the 3-day free trial?",
-    answer: "Your free trial includes full access to all features of your chosen plan. No credit card required, and you can cancel anytime during the trial period. You'll get complete access to AI chat, document library, grievance tools, and all premium features to fully evaluate the platform.",
+    question: "Is there a free trial?",
+    answer: "There is no free trial. This screen does not start a subscription.",
     icon: Clock,
     category: "trial"
   },
   {
     id: 3,
     question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, MasterCard, American Express, Discover), ACH bank transfers, and can accommodate purchase orders for enterprise customers. For union locals with 50+ members, we also offer invoicing and net-30 payment terms.",
+    answer: "This page does not accept cards, bank transfers, or purchase orders. The prices are not for sale.",
     icon: CreditCard,
     category: "payment"
   },
   {
     id: 4,
     question: "How secure is my union data?",
-    answer: "We use enterprise-grade encryption (AES-256) and comply with SOC 2 Type II, GDPR, and CCPA regulations. Your union data is never shared with third parties, stored in secure data centers, and backed up daily. We maintain strict access controls and regular security audits.",
+    answer: "This prototype does not claim SOC 2, GDPR, CCPA, HIPAA, or an encryption certification. Do not put member records in it.",
     icon: Lock,
     category: "security"
   },
   {
     id: 5,
     question: "Do you offer discounts for large unions?",
-    answer: "Yes! We offer volume discounts starting at 10% for unions with 100+ members, 15% for 500+ members, and 20% for 1000+ members. We also provide special pricing for multi-local organizations and can create custom enterprise packages for large union networks.",
+    answer: "There is no volume pricing. The numbers on this page are not a quote.",
     icon: Users,
     category: "discounts"
   },
   {
     id: 6,
     question: "What happens to my conversation history?",
-    answer: "All your AI conversations and union documents are securely stored and remain accessible throughout your subscription. If you cancel, you have 90 days to export your data. We provide easy export tools in JSON and PDF formats, and can assist with data migration if needed.",
+    answer: "This prototype does not promise storage, export, or a retention window.",
     icon: Database,
     category: "data"
   }
@@ -272,47 +272,14 @@ const faqData = [
 const testimonials = [
   {
     id: 1,
-    name: "Maria Santos",
-    title: "Shop Steward",
-    local: "IBEW Local 1245",
-    avatar: "MS",
-    rating: 5,
-    quote: "UnionBolt AI has revolutionized how we handle member questions. The AI assistant knows our contract inside and out, and I can resolve grievances 3x faster than before.",
-    metrics: "Resolved 47 grievances this quarter",
-    industry: "Electrical"
-  },
-  {
-    id: 2,
-    name: "James Mitchell",
-    title: "Business Agent",
-    local: "Teamsters Local 853",
-    avatar: "JM",
-    rating: 5,
-    quote: "The analytics dashboard gives us incredible insights into member engagement. We've increased training participation by 65% since implementing UnionBolt AI.",
-    metrics: "Serves 2,400+ members",
-    industry: "Transportation"
-  },
-  {
-    id: 3,
-    name: "Sarah Chen",
-    title: "Safety Coordinator",
-    local: "UAW Local 2865",
-    avatar: "SC",
-    rating: 5,
-    quote: "Safety incident reporting is now seamless. Members can quickly report hazards through the AI chat, and we've reduced workplace accidents by 40% this year.",
-    metrics: "40% reduction in accidents",
-    industry: "Manufacturing"
-  },
-  {
-    id: 4,
-    name: "Robert Johnson",
-    title: "Training Director",
-    local: "Carpenters Local 713",
-    avatar: "RJ",
-    rating: 5,
-    quote: "The training modules and progress tracking have transformed our apprenticeship program. Completion rates are up 80%, and apprentices love the interactive AI guidance.",
-    metrics: "80% higher completion rates",
-    industry: "Construction"
+    name: "No member quotes",
+    title: "Prototype",
+    local: "This repository",
+    avatar: "—",
+    rating: 0,
+    quote: "These cards are not from union members. This repository is an in-progress prototype, and it does not report a grievance count or an accident rate.",
+    metrics: "Not a customer result",
+    industry: "Prototype"
   }
 ];
 
@@ -320,39 +287,39 @@ const testimonials = [
 const usageStats = [
   {
     icon: MessageSquare,
-    value: "2.4M+",
-    label: "AI Conversations",
-    description: "Monthly AI interactions across all union locals"
+    value: "Prototype",
+    label: "Status",
+    description: "Public repository. Not a launched product."
   },
   {
     icon: Users,
-    value: "150+",
-    label: "Union Locals",
-    description: "Active union locals using UnionBolt AI"
+    value: "None",
+    label: "Member count",
+    description: "No local or member count is claimed here."
   },
   {
     icon: FileText,
-    value: "98%",
-    label: "Issue Resolution",
-    description: "Member questions resolved on first contact"
+    value: "None",
+    label: "Certifications",
+    description: "No SOC 2, GDPR, or HIPAA claim."
   },
   {
     icon: TrendingUp,
-    value: "45%",
-    label: "Efficiency Gain",
-    description: "Average improvement in union operations"
+    value: "None",
+    label: "Endorsements",
+    description: "No union has endorsed this screen."
   },
   {
     icon: Shield,
-    value: "99.9%",
-    label: "Uptime",
-    description: "Platform reliability and availability"
+    value: "Not live",
+    label: "Billing",
+    description: "Prices on this screen are not for sale."
   },
   {
     icon: Clock,
-    value: "< 2 min",
-    label: "Response Time",
-    description: "Average AI response time for member queries"
+    value: "In progress",
+    label: "Product",
+    description: "The newer build is private."
   }
 ];
 
@@ -360,23 +327,23 @@ const usageStats = [
 const trustIndicators = [
   {
     icon: Shield,
-    title: "SOC 2 Certified",
-    description: "Enterprise security standards"
+    title: "Not certified",
+    description: "No SOC 2 or GDPR audit"
   },
   {
     icon: Lock,
-    title: "GDPR Compliant",
-    description: "Data protection compliance"
+    title: "No member records",
+    description: "Do not store a local's files here"
   },
   {
     icon: Verified,
-    title: "Union Endorsed",
-    description: "Approved by AFL-CIO"
+    title: "Not endorsed",
+    description: "No federation approval"
   },
   {
     icon: Award,
-    title: "Industry Leader",
-    description: "Top-rated union platform"
+    title: "Prototype",
+    description: "In-progress public repository"
   }
 ];
 
@@ -536,13 +503,12 @@ export default function PricingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
-              <span className="text-white">Choose Your </span>
-              <span className="neon-text">Power Level</span>
+              <span className="text-white">Prototype </span>
+              <span className="neon-text">pricing screen</span>
             </h1>
             
             <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Unlock the full potential of union knowledge with our AI-powered platform. 
-              From apprentice to steward, we have the perfect plan for your journey.
+              These prices are not for sale. This repository does not bill members, and it is not a launched product.
             </p>
 
             {/* Usage Statistics */}
@@ -684,7 +650,7 @@ export default function PricingPage() {
                     </Button>
                     
                     <p className="text-xs text-muted-foreground text-center">
-                      No credit card required • Cancel anytime
+                      Prototype labels. Nothing is charged on this screen.
                     </p>
                   </div>
                 </CardContent>
@@ -1111,15 +1077,15 @@ export default function PricingPage() {
                 <div className="flex items-center justify-center space-x-8 text-sm text-muted-foreground">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>3-day free trial</span>
+                    <span>No trial</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>No credit card required</span>
+                    <span>No card charge</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>Cancel anytime</span>
+                    <span>Nothing to cancel</span>
                   </div>
                 </div>
               </div>
@@ -1137,8 +1103,7 @@ export default function PricingPage() {
                   </div>
                   
                   <p className="text-lg text-muted-foreground mb-6">
-                    Custom solutions for large unions and organizations with specific requirements.
-                    Get dedicated support, custom integrations, and enterprise-grade security.
+                    This block is prototype copy. It is not a security certification, and it is not a live enterprise plan.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">

@@ -2,7 +2,7 @@
 
 In-progress member software: safety notes, grievances, and contract questions. This repository is the public prototype. The newer private build is `unionbolts-platform-v2`.
 
-`package.json` sets `homepage` to `https://unionbolts.com`. This README does not treat that domain as a launched product. The dconsult page that links here says the same: in progress, and the product site is not claimed live.
+`package.json` homepage points at this GitHub repository. `unionbolts.com` is not a launched product. The dconsult page that links here says the same: in progress.
 
 ## Stack in this repo
 

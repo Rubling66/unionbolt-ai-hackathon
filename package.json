@@ -1,13 +1,13 @@
 {
-  "name": "unionbolts-platform",
+  "name": "unionbolt-ai-hackathon",
   "version": "1.0.0",
-  "description": "UnionBolts AI-powered platform for workplace safety, grievances, and contract management",
-  "homepage": "https://unionbolts.com",
+  "description": "Public Union Bolts prototype. In progress. Not a launched product site.",
+  "homepage": "https://github.com/Rubling66/unionbolt-ai-hackathon",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rubling66/unionbolts-platform.git"
+    "url": "https://github.com/Rubling66/unionbolt-ai-hackathon.git"
   },
-  "author": "UnionBolts Team",
+  "author": "Reuben Cole",
   "keywords": [
     "unionbolts",
     "workplace-safety",

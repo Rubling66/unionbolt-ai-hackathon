@@ -2,8 +2,8 @@
 
 **Evaluated:** 2026-05-31  
 **Repository:** https://github.com/Rubling66/unionbolt-ai-hackathon  
-**Local Path:** C:\Users\Admin\Desktop\unionbolt-ai-hackathon  
-**Live Site:** unionbolts.com (claimed, not verified accessible)
+**Local Path:** local checkout, not published  
+**Live Site:** none. This file does not claim unionbolts.com.
 
 ---
 
