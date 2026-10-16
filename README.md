@@ -1,5 +1,10 @@
 # Union Bolts — public prototype
 
+## Content
+
+The records a caller can mean are defined in `lib/content.ts`. That file is the contract. It names the records and their fields.
+
+
 In-progress member software: safety notes, grievances, and contract questions. This repository is the public prototype. The newer private build is `unionbolts-platform-v2`.
 
 `package.json` homepage points at this GitHub repository. `unionbolts.com` is not a launched product. The dconsult page that links here says the same: in progress.
