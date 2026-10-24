@@ -2,10 +2,15 @@
 # Tests the provided API key against Tavus endpoints
 
 param(
-    [string]$ApiKey = "4fed836b3cf943918a0f8931eb6ee967"
+    [string]$ApiKey = $env:TAVUS_API_KEY
 )
 
 $ErrorActionPreference = "Continue"
+
+if ([string]::IsNullOrWhiteSpace($ApiKey)) {
+    Write-Host "TAVUS_API_KEY is not set. Set it in your environment or pass -ApiKey." -ForegroundColor Red
+    exit 1
+}
 
 function Write-Status {
     param(
